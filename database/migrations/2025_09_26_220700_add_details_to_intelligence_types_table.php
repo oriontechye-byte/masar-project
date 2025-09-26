@@ -12,7 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('intelligence_types', function (Blueprint $table) {
-            //
+            $table->text('description')->nullable()->after('name');
+            $table->string('careers')->nullable()->after('description');
         });
     }
 
@@ -22,7 +23,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('intelligence_types', function (Blueprint $table) {
-            //
+            $table->dropColumn(['description', 'careers']);
         });
     }
 };
