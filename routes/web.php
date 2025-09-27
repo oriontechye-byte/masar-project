@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TestController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Admin\DashboardController; // Make sure this line is added
 
 /*
 |--------------------------------------------------------------------------
@@ -39,10 +40,8 @@ Route::prefix('admin')->group(function () {
     Route::middleware('auth')->group(function () {
         Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
         
-        // Dashboard (we will create this in the next step)
-        Route::get('/dashboard', function () {
-            return 'أهلاً بك في لوحة التحكم!';
-        })->name('admin.dashboard');
+        // This route now uses the DashboardController to show the dashboard page
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
 
         // Other admin routes will go here in the future
     });
