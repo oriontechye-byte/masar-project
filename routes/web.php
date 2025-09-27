@@ -8,17 +8,17 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\StudentController as AdminStudentController;
 use App\Http\Controllers\Admin\QuestionController;
 use App\Http\Controllers\Admin\IntelligenceTypeController;
+use App\Http\Controllers\PageController; // <-- الإضافة الجديدة
 
 /*
 |--------------------------------------------------------------------------
-| Student Facing Routes
+| Public Routes
 |--------------------------------------------------------------------------
 */
-Route::get('/', function () {
-    return redirect('/register');
-});
+// The new landing page is now the main route
+Route::get('/', [PageController::class, 'showLandingPage'])->name('landing');
 
-// Student & Test routes remain the same...
+// Student & Test routes
 Route::get('/register', [StudentController::class, 'showRegistrationForm']);
 Route::post('/register', [StudentController::class, 'register']);
 Route::get('/post-test', [StudentController::class, 'showPostTestLookupForm']);
@@ -53,4 +53,3 @@ Route::prefix('admin')->middleware('auth')->name('admin.')->group(function () {
     Route::get('/types/{id}/edit', [IntelligenceTypeController::class, 'edit'])->name('types.edit');
     Route::put('/types/{id}', [IntelligenceTypeController::class, 'update'])->name('types.update');
 });
-
