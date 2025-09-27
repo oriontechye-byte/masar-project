@@ -45,6 +45,7 @@ Route::prefix('admin')->middleware('auth')->name('admin.')->group(function () {
     Route::get('/students/{id}', [AdminStudentController::class, 'show'])->name('students.show');
 
     // Questions Management using resource routing for simplicity and best practice
+    // This single line creates all the necessary routes: index, create, store, edit, update, destroy
     Route::resource('questions', QuestionController::class)->except(['show']);
 
 });
