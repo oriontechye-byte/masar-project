@@ -9,15 +9,33 @@ use Illuminate\Support\Facades\DB;
 class StudentController extends Controller
 {
     /**
-     * Display a listing of the students.
+     * عرض قائمة بكل الطلاب
      */
     public function index()
     {
-        // Fetch all students from the database, ordering by the newest first
-        $students = DB::table('students')->orderBy('created_at', 'desc')->paginate(15); // Show 15 per page
-
+        $students = DB::table('students')->orderBy('created_at', 'desc')->paginate(15);
         return view('admin.students.index', ['students' => $students]);
     }
 
-    // We will add more functions here later (like show, edit, delete)
+    /**
+     * عرض صفحة التفاصيل لطالب معين
+     */
+    public function show($id)
+    {
+        $student = DB::table('students')->find($id);
+        $result = DB::table('test_results')->where('student_id', $id)->first();
+        $intelligenceTypes = DB::table('intelligence_types')->get()->keyBy('id');
+
+        // إذا لم يتم العثور على الطالب، قم بإعادته لصفحة الطلاب
+        if (!$student) {
+            return redirect()->route('admin.students.index')->with('error', 'الطالب غير موجود.');
+        }
+
+        return view('admin.students.show', [
+            'student' => $student,
+            'result' => $result,
+            'intelligenceTypes' => $intelligenceTypes,
+        ]);
+    }
 }
+
