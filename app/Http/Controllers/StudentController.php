@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redirect;
-use App\Http\Controllers\Admin\StudentController as AdminStudentController;
 
 class StudentController extends Controller
 {
@@ -25,44 +24,37 @@ class StudentController extends Controller
     }
 
     /**
-     * التحقق من بيانات الطالب وتخزينها مؤقتاً.
+     * التحقق من بيانات الطالب وتخزينها مؤقتاً في الجلسة.
      */
     public function register(Request $request)
     {
-        // 1. التحقق من صحة البيانات
         $validatedData = $request->validate([
-            'full_name' => ['required', 'string', 'max:255', 'regex:/^[\p{Arabic}\s]{3,}(\s[\p{Arabic}\s]+){2,}/u'],
+            'full_name' => ['required', 'string', 'max:255', 'regex:/^[\p{Arabic}\s]+$/u'], // قاعدة تحقق أبسط
             'whatsapp_number' => 'required|string|unique:students,whatsapp_number|regex:/^[7][01378]\d{7}$/',
             'email' => 'nullable|email|max:255',
             'governorate' => 'required|string|max:255',
             'gpa' => 'required|numeric|min:0|max:100',
             'graduation_year' => 'required|digits:4',
         ], [
-            'full_name.regex' => 'يجب إدخال الاسم الثلاثي على الأقل.',
+            'full_name.regex' => 'الرجاء إدخال الاسم باللغة العربية.',
             'whatsapp_number.unique' => 'رقم الهاتف هذا مسجل بالفعل في النظام.',
             'whatsapp_number.regex' => 'يجب إدخال رقم هاتف يمني صحيح مكون من 9 أرقام (مثال: 771234567).',
         ]);
 
-        // 2. تخزين البيانات المؤقت في الجلسة
+        // تخزين البيانات المؤقت في الجلسة
         session(['student_registration_data' => $validatedData]);
 
-        // 3. توجيه الطالب إلى صفحة الاختبار القبلي
+        // توجيه الطالب إلى صفحة الاختبار القبلي
         return Redirect::to('/test?test_type=pre');
     }
     
-    // ... بقية الدوال تبقى كما هي ...
+    // --- بقية الدوال تبقى كما هي ---
 
-    /**
-     * عرض صفحة البحث عن اختبار ما بعد المحاضرة.
-     */
     public function showPostTestLookupForm()
     {
         return view('post_test_lookup');
     }
 
-    /**
-     * معالجة البحث عن الطالب.
-     */
     public function handlePostTestLookup(Request $request)
     {
         $request->validate([
@@ -83,12 +75,8 @@ class StudentController extends Controller
         ]);
     }
 
-    /**
-     * عرض صفحة النتائج النهائية للطالب.
-     */
     public function showStudentResults($student_id)
     {
-        // ... هذه الدالة تبقى كما هي بدون تغيير ...
         $student = DB::table('students')->find($student_id);
         if (!$student) { abort(404, 'الطالب غير موجود'); }
         $result = DB::table('test_results')->where('student_id', $student_id)->first();

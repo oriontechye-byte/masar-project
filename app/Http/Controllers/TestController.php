@@ -31,6 +31,17 @@ class TestController extends Controller
     {
         $testType = $request->input('test_type');
         $answers = $request->input('answers');
+        $studentId = $request->input('student_id');
+
+        // -- تعديل مهم: التحقق من وجود بيانات الجلسة للاختبار القبلي --
+        if ($testType === 'pre') {
+            if (!session()->has('student_registration_data')) {
+                // إذا كانت البيانات غير موجودة، نعيد الطالب لصفحة التسجيل مع رسالة واضحة
+                return redirect('/register')->withErrors(['msg' => 'انتهت صلاحية الجلسة، الرجاء تسجيل بياناتك مرة أخرى.']);
+            }
+            $studentData = session('student_registration_data');
+        }
+        // -- نهاية التعديل --
 
         // حساب الدرجات
         $questions = DB::table('questions')->get()->keyBy('id');
@@ -55,12 +66,7 @@ class TestController extends Controller
             }
         }
 
-        $studentId = $request->input('student_id');
-
         if ($testType === 'pre') {
-            // إذا كان الاختبار قبلياً، نقوم بعملية الحفظ المتكاملة
-            $studentData = session('student_registration_data');
-
             // 1. إنشاء سجل الطالب
             $studentId = DB::table('students')->insertGetId([
                 'full_name' => $studentData['full_name'],
@@ -88,7 +94,6 @@ class TestController extends Controller
                 'updated_at' => now(),
             ]);
             
-            // 3. مسح البيانات المؤقتة من الجلسة
             Session::forget('student_registration_data');
 
         } elseif ($testType === 'post') {
@@ -110,3 +115,4 @@ class TestController extends Controller
         return redirect()->route('results.show', ['student_id' => $studentId]);
     }
 }
+
