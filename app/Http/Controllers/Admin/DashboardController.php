@@ -1,21 +1,24 @@
- <?php
-    namespace App\Http\Controllers\Admin;
+<?php
 
-    use App\Http\Controllers\Controller;
-    use Illuminate\Http\Request;
-    use Illuminate\Support\Facades\DB;
+namespace App\Http\Controllers\Admin;
 
-    class DashboardController extends Controller
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+
+class DashboardController extends Controller
+{
+    /**
+     * عرض لوحة التحكم الرئيسية مع الإحصائيات.
+     */
+    public function index()
     {
-        public function index()
-        {
-            $totalStudents = DB::table('students')->count();
-            // You can add more stats here later
-            // $testsTaken = DB::table('test_results')->count();
+        $stats = [
+            'students_count' => DB::table('students')->count(),
+            // يمكن إضافة إحصائيات أخرى هنا مستقبلاً
+        ];
 
-            return view('admin.dashboard', [
-                'totalStudents' => $totalStudents,
-            ]);
-        }
+        return view('admin.dashboard', compact('stats'));
     }
-    
+}
+
