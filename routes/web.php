@@ -6,6 +6,7 @@ use App\Http\Controllers\StudentController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\StudentController as AdminStudentController;
+use App\Http\Controllers\Admin\QuestionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -16,13 +17,13 @@ Route::get('/', function () {
     return redirect('/register');
 });
 
-// Student Registration & Test
+// Student routes...
 Route::get('/register', [StudentController::class, 'showRegistrationForm']);
 Route::post('/register', [StudentController::class, 'register']);
 Route::get('/post-test', [StudentController::class, 'showPostTestLookupForm']);
 Route::post('/post-test', [StudentController::class, 'handlePostTestLookup']);
 
-// Test Flow
+// Test Flow routes...
 Route::get('/test', [TestController::class, 'showTest']);
 Route::post('/submit-test', [TestController::class, 'calculateResult']);
 Route::get('/results/{student_id}', [StudentController::class, 'showStudentResults'])->name('results.show');
@@ -32,21 +33,21 @@ Route::get('/results/{student_id}', [StudentController::class, 'showStudentResul
 | Admin Panel Routes
 |--------------------------------------------------------------------------
 */
-Route::prefix('admin')->group(function () {
-    // Login Routes
-    Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
-    Route::post('/login', [LoginController::class, 'login']);
+Route::get('/admin/login', [LoginController::class, 'showLoginForm'])->name('login');
+Route::post('/admin/login', [LoginController::class, 'login']);
 
-    // Routes that require authentication
-    Route::middleware('auth')->name('admin.')->group(function () {
-        Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
-        
-        // Dashboard
+Route::middleware('auth')->group(function () {
+    Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+    
+    Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-
+        
         // Students Management
         Route::get('/students', [AdminStudentController::class, 'index'])->name('students.index');
         Route::get('/students/{id}', [AdminStudentController::class, 'show'])->name('students.show');
+
+        // Questions Management
+        Route::get('/questions', [QuestionController::class, 'index'])->name('questions.index');
     });
 });
 

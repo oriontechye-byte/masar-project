@@ -4,6 +4,8 @@ namespace Database\Seeders;
 
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB; // Add this line
+use Illuminate\Support\Facades\Hash; // Add this line
 
 class DatabaseSeeder extends Seeder
 {
@@ -12,9 +14,20 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // First, run the other seeders
         $this->call([
             IntelligenceTypeSeeder::class,
-            QuestionSeeder::class, // <-- This is the new line we added
+            QuestionSeeder::class,
+        ]);
+
+        // Then, create the Admin User
+        DB::table('users')->insert([
+            'name' => 'Admin',
+            'email' => 'admin@masar.com',
+            'password' => Hash::make('password'),
+            'role' => 'admin',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
     }
 }
