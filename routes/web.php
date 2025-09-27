@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\StudentController as AdminStudentController;
 use App\Http\Controllers\Admin\QuestionController;
+use App\Http\Controllers\Admin\IntelligenceTypeController;
 
 /*
 |--------------------------------------------------------------------------
@@ -44,9 +45,12 @@ Route::prefix('admin')->middleware('auth')->name('admin.')->group(function () {
     Route::get('/students', [AdminStudentController::class, 'index'])->name('students.index');
     Route::get('/students/{id}', [AdminStudentController::class, 'show'])->name('students.show');
 
-    // Questions Management using resource routing for simplicity and best practice
-    // This single line creates all the necessary routes: index, create, store, edit, update, destroy
+    // Questions Management
     Route::resource('questions', QuestionController::class)->except(['show']);
 
+    // Intelligence Types Management
+    Route::get('/types', [IntelligenceTypeController::class, 'index'])->name('types.index');
+    Route::get('/types/{id}/edit', [IntelligenceTypeController::class, 'edit'])->name('types.edit');
+    Route::put('/types/{id}', [IntelligenceTypeController::class, 'update'])->name('types.update');
 });
 
