@@ -17,13 +17,11 @@ Route::get('/', function () {
     return redirect('/register');
 });
 
-// Student routes...
+// Student & Test routes remain the same...
 Route::get('/register', [StudentController::class, 'showRegistrationForm']);
 Route::post('/register', [StudentController::class, 'register']);
 Route::get('/post-test', [StudentController::class, 'showPostTestLookupForm']);
 Route::post('/post-test', [StudentController::class, 'handlePostTestLookup']);
-
-// Test Flow routes...
 Route::get('/test', [TestController::class, 'showTest']);
 Route::post('/submit-test', [TestController::class, 'calculateResult']);
 Route::get('/results/{student_id}', [StudentController::class, 'showStudentResults'])->name('results.show');
@@ -35,19 +33,19 @@ Route::get('/results/{student_id}', [StudentController::class, 'showStudentResul
 */
 Route::get('/admin/login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/admin/login', [LoginController::class, 'login']);
+Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
-Route::middleware('auth')->group(function () {
-    Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+Route::prefix('admin')->middleware('auth')->name('admin.')->group(function () {
+    
+    // Dashboard
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    
+    // Students Management
+    Route::get('/students', [AdminStudentController::class, 'index'])->name('students.index');
+    Route::get('/students/{id}', [AdminStudentController::class, 'show'])->name('students.show');
 
-    Route::prefix('admin')->name('admin.')->group(function () {
-        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    // Questions Management using resource routing for simplicity and best practice
+    Route::resource('questions', QuestionController::class)->except(['show']);
 
-        // Students Management
-        Route::get('/students', [AdminStudentController::class, 'index'])->name('students.index');
-        Route::get('/students/{id}', [AdminStudentController::class, 'show'])->name('students.show');
-
-        // Questions Management
-        Route::get('/questions', [QuestionController::class, 'index'])->name('questions.index');
-    });
 });
 
