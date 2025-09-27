@@ -3,16 +3,20 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB; // تم إضافة هذا السطر لأنه مطلوب للوظائف الجديدة
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redirect;
+use App\Http\Controllers\Admin\StudentController as AdminStudentController;
 
 class StudentController extends Controller
 {
+    /**
+     * عرض صفحة التسجيل.
+     */
     public function showRegistrationForm()
     {
         $governorates = ['أمانة العاصمة', 'عدن', 'عمران', 'أبين', 'الضالع', 'البيضاء', 'الحديدة', 'الجوف', 'المهرة', 'المحويت', 'ذمار', 'حضرموت', 'حجة', 'إب', 'لحج', 'مأرب', 'ريمة', 'صعدة', 'صنعاء', 'شبوة', 'سقطرى', 'تعز'];
         sort($governorates);
-        $years = range(date('Y'), date('Y') - 4);
+        $years = range(date('Y'), date('Y') - 5);
 
         return view('register', [
             'governorates' => $governorates,
@@ -20,38 +24,44 @@ class StudentController extends Controller
         ]);
     }
 
+    /**
+     * التحقق من بيانات الطالب وتخزينها مؤقتاً.
+     */
     public function register(Request $request)
     {
-        // 1. Validate the incoming data (without password)
+        // 1. التحقق من صحة البيانات
         $validatedData = $request->validate([
-            'full_name' => ['required', 'string', 'max:255', 'regex:/^[\p{Arabic}\s]{1,}\s[\p{Arabic}\s]{1,}\s[\p{Arabic}\s]{1,}\s[\p{Arabic}\s]{1,}$/u'],
-            'whatsapp_number' => 'required|string|regex:/^[7][01378]\d{7}$/', // We remove 'unique' for now
+            'full_name' => ['required', 'string', 'max:255', 'regex:/^[\p{Arabic}\s]{3,}(\s[\p{Arabic}\s]+){2,}/u'],
+            'whatsapp_number' => 'required|string|unique:students,whatsapp_number|regex:/^[7][01378]\d{7}$/',
             'email' => 'nullable|email|max:255',
             'governorate' => 'required|string|max:255',
             'gpa' => 'required|numeric|min:0|max:100',
             'graduation_year' => 'required|digits:4',
         ], [
-            'full_name.regex' => 'يجب إدخال الاسم الرباعي.',
+            'full_name.regex' => 'يجب إدخال الاسم الثلاثي على الأقل.',
+            'whatsapp_number.unique' => 'رقم الهاتف هذا مسجل بالفعل في النظام.',
             'whatsapp_number.regex' => 'يجب إدخال رقم هاتف يمني صحيح مكون من 9 أرقام (مثال: 771234567).',
         ]);
 
-        // 2. Store the validated data in the session instead of the database
-        session(['student_data' => $validatedData]);
+        // 2. تخزين البيانات المؤقت في الجلسة
+        session(['student_registration_data' => $validatedData]);
 
-        // 3. Redirect the user to the test page for the pre-lecture test
+        // 3. توجيه الطالب إلى صفحة الاختبار القبلي
         return Redirect::to('/test?test_type=pre');
     }
+    
+    // ... بقية الدوال تبقى كما هي ...
 
     /**
-     * عرض صفحة البحث عن الطالب لاختبار ما بعد المحاضرة
+     * عرض صفحة البحث عن اختبار ما بعد المحاضرة.
      */
     public function showPostTestLookupForm()
     {
-        return view('post_test_lookup'); // سنقوم بإنشاء هذه الصفحة في الخطوة التالية
+        return view('post_test_lookup');
     }
 
     /**
-     * معالجة البحث عن الطالب
+     * معالجة البحث عن الطالب.
      */
     public function handlePostTestLookup(Request $request)
     {
@@ -62,17 +72,47 @@ class StudentController extends Controller
             'whatsapp_number.regex' => 'الرقم الذي أدخلته غير صحيح.',
         ]);
 
-        // البحث عن الطالب باستخدام رقم هاتفه
         $student = DB::table('students')->where('whatsapp_number', $request->whatsapp_number)->first();
 
         if ($student) {
-            // إذا تم العثور على الطالب، قم بتحويله إلى صفحة الاختبار
             return Redirect::to('/test?student_id=' . $student->id . '&test_type=post');
         }
 
-        // إذا لم يتم العثور عليه، ارجع إلى نفس الصفحة مع رسالة خطأ
         return back()->withErrors([
-            'whatsapp_number' => 'لم يتم العثور على طالب بهذا الرقم. يرجى التأكد من أنك سجلت في اختبار قبل المحاضرة.',
+            'whatsapp_number' => 'لم يتم العثور على طالب بهذا الرقم.',
         ]);
     }
+
+    /**
+     * عرض صفحة النتائج النهائية للطالب.
+     */
+    public function showStudentResults($student_id)
+    {
+        // ... هذه الدالة تبقى كما هي بدون تغيير ...
+        $student = DB::table('students')->find($student_id);
+        if (!$student) { abort(404, 'الطالب غير موجود'); }
+        $result = DB::table('test_results')->where('student_id', $student_id)->first();
+        $intelligenceTypes = DB::table('intelligence_types')->get()->keyBy('id');
+        $preScores = [];
+        $postScores = null;
+        if ($result) {
+            foreach ($intelligenceTypes as $id => $type) {
+                $score_key = 'score_' . \Illuminate\Support\Str::of($type->name)->snake()->explode('_')->last();
+                $preScores[$id] = $result->{$score_key} ?? 0;
+            }
+            arsort($preScores);
+            
+            $post_score_key_check = 'post_score_social';
+            if (isset($result->{$post_score_key_check})) {
+                $postScores = [];
+                foreach ($intelligenceTypes as $id => $type) {
+                     $post_score_key = 'post_score_' . \Illuminate\Support\Str::of($type->name)->snake()->explode('_')->last();
+                     $postScores[$id] = $result->{$post_score_key} ?? 0;
+                }
+                arsort($postScores);
+            }
+        }
+        return view('results', compact('student', 'preScores', 'postScores', 'intelligenceTypes'));
+    }
 }
+

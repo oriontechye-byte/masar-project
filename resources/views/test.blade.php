@@ -3,120 +3,92 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>أسئلة اختبار تحديد الذكاء</title>
+    <title>اختبار تحديد الذكاء - مشروع مسار</title>
     <style>
         body {
             font-family: 'Cairo', sans-serif;
             background-color: #f4f4f9;
             color: #333;
-            line-height: 1.6;
+            line-height: 1.8;
         }
         .container {
             max-width: 800px;
             margin: 40px auto;
-            padding: 30px;
+            padding: 40px;
             background: #fff;
             border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
         h1 {
-            color: #2c3e50;
             text-align: center;
-            margin-bottom: 20px;
+            color: #2c3e50;
+            margin-bottom: 30px;
         }
-        .question-list {
-            list-style: none;
-            padding: 0;
-        }
-        .question-item {
-            background: #f9f9f9;
-            border-right: 5px solid #3498db;
-            padding: 20px;
-            margin-bottom: 15px;
-            border-radius: 5px 0 0 5px;
+        .question-block {
+            margin-bottom: 25px;
+            padding-bottom: 25px;
+            border-bottom: 1px solid #eee;
         }
         .question-text {
             font-weight: bold;
-            font-size: 1.1em;
+            font-size: 18px;
             margin-bottom: 15px;
         }
         .options {
             display: flex;
-            flex-wrap: wrap;
             justify-content: space-around;
         }
-        .option {
-            display: flex;
-            align-items: center;
-            margin: 5px 10px;
+        .options label {
             cursor: pointer;
+            padding: 10px 15px;
+            border-radius: 5px;
+            transition: background-color 0.3s;
         }
-        .option input[type="radio"] {
-            margin-left: 10px;
+        .options input[type="radio"] {
+            margin-left: 8px;
+        }
+        .options label:hover {
+            background-color: #f0f0f0;
         }
         .submit-btn {
             display: block;
             width: 100%;
             padding: 15px;
-            font-size: 18px;
-            font-weight: bold;
-            color: #fff;
+            cursor: pointer;
             background-color: #28a745;
+            color: white;
             border: none;
             border-radius: 5px;
-            cursor: pointer;
+            font-size: 20px;
+            font-weight: bold;
             margin-top: 30px;
-            transition: background-color 0.3s ease;
-        }
-        .submit-btn:hover {
-            background-color: #218838;
         }
     </style>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
-
     <div class="container">
         <h1>أسئلة اختبار تحديد الذكاء</h1>
-
-        {{-- لاحظ أن action يذهب إلى المسار الصحيح /submit-test --}}
         <form action="/submit-test" method="POST">
             @csrf
-            
-            {{-- حقل مخفي لإرسال هوية الطالب مع الإجابات، وهو ضروري جداً --}}
+            {{-- نرسل البيانات المخفية مع الفورم --}}
             <input type="hidden" name="student_id" value="{{ request('student_id') }}">
+            <input type="hidden" name="test_type" value="{{ request('test_type') }}">
 
-            <ul class="question-list">
-                {{-- الكود الخاص بك لعرض الأسئلة من قاعدة البيانات يعمل بشكل ممتاز هنا --}}
-                @foreach ($questions as $index => $question)
-                    <li class="question-item">
-                        {{-- تم تغيير $question->text إلى $question->question_text ليطابق اسم العمود في قاعدة البيانات --}}
-                        <p class="question-text">{{ ($index + 1) . '. ' . $question->question_text }}</p>
-                        <div class="options">
-                            <label class="option">
-                                {{-- تم تغيير القيم إلى أرقام لتسهيل عملية الحساب في المتحكم --}}
-                                <input type="radio" name="answers[{{ $question->id }}]" value="2" required>
-                                تنطبق بشدة
-                            </label>
-                            <label class="option">
-                                <input type="radio" name="answers[{{ $question->id }}]" value="1">
-                                تنطبق أحياناً
-                            </label>
-                            <label class="option">
-                                <input type="radio" name="answers[{{ $question->id }}]" value="0">
-                                لا تنطبق
-                            </label>
-                        </div>
-                    </li>
-                @endforeach
-            </ul>
+            @foreach ($questions as $question)
+                <div class="question-block">
+                    <p class="question-text">{{ $loop->iteration }}. {{ $question->text }}</p> {{-- <<-- تم تصحيح اسم الحقل هنا --}}
+                    <div class="options">
+                        <label><input type="radio" name="answers[{{ $question->id }}]" value="2" required> تنطبق بشدة</label>
+                        <label><input type="radio" name="answers[{{ $question->id }}]" value="1"> تنطبق أحياناً</label>
+                        <label><input type="radio" name="answers[{{ $question->id }}]" value="0"> لا تنطبق</label>
+                    </div>
+                </div>
+            @endforeach
 
-            <button type="submit" class="submit-btn">عرض النتيجة</button>
+            <button type="submit" class="submit-btn">إرسال النتيجة</button>
         </form>
     </div>
-
 </body>
 </html>
 

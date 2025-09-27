@@ -4,114 +4,109 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Session;
 
 class TestController extends Controller
 {
     /**
-     * عرض صفحة الاختبار
+     * عرض صفحة الاختبار.
      */
-    public function showTest(Request $request)
+    public function showTest()
     {
-        // التأكد من وجود هوية الطالب ونوع الاختبار
-        if (!$request->has('student_id') || !$request->has('test_type')) {
-            // يمكنك توجيهه لصفحة خطأ أو للصفحة الرئيسية
-            return redirect('/')->withErrors('رابط الاختبار غير صالح.');
+        // نتأكد من وجود بيانات الطالب في الجلسة إذا كان الاختبار قبلياً
+        if (request('test_type') == 'pre' && !Session::has('student_registration_data')) {
+            // إذا لم تكن هناك بيانات، نعيده لصفحة التسجيل
+            return redirect('/register')->withErrors(['msg' => 'الرجاء إكمال بيانات التسجيل أولاً.']);
         }
-
+        
         $questions = DB::table('questions')->get();
-        return view('test', [
-            'questions' => $questions,
-            'student_id' => $request->student_id,
-            'test_type' => $request->test_type
-        ]);
+        return view('test', ['questions' => $questions]);
     }
 
     /**
-     * حساب النتائج وحفظها
+     * حساب وحفظ نتائج الاختبار.
      */
     public function calculateResult(Request $request)
     {
-        $answers = $request->input('answers');
-        $studentId = $request->input('student_id');
         $testType = $request->input('test_type');
+        $answers = $request->input('answers');
 
+        // حساب الدرجات
         $questions = DB::table('questions')->get()->keyBy('id');
-        $scores = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0, 6 => 0, 7 => 0, 8 => 0];
+        $scores = [];
+        $typeMap = [
+            1 => 'social', 2 => 'visual', 3 => 'intrapersonal', 4 => 'kinesthetic',
+            5 => 'logical', 6 => 'naturalist', 7 => 'linguistic', 8 => 'musical'
+        ];
+        
+        // تهيئة مصفوفة الدرجات
+        foreach ($typeMap as $name) {
+            $scores[$name] = 0;
+        }
 
-        foreach ($answers as $question_id => $value) {
-            if (isset($questions[$question_id])) {
-                $intelligence_type_id = $questions[$question_id]->intelligence_type_id;
-                $scores[$intelligence_type_id] += (int)$value;
+        if ($answers) {
+            foreach ($answers as $question_id => $value) {
+                if (isset($questions[$question_id])) {
+                    $question = $questions[$question_id];
+                    $typeName = $typeMap[$question->intelligence_type_id];
+                    $scores[$typeName] += (int)$value;
+                }
             }
         }
 
+        $studentId = $request->input('student_id');
+
         if ($testType === 'pre') {
-            // هذا هو الاختبار القبلي، نقوم بإدخال سجل جديد
-            DB::table('test_results')->insert([
-                'student_id' => $studentId,
-                'score_social' => $scores[1],
-                'score_visual' => $scores[2],
-                'score_intrapersonal' => $scores[3],
-                'score_kinesthetic' => $scores[4],
-                'score_logical' => $scores[5],
-                'score_naturalist' => $scores[6],
-                'score_linguistic' => $scores[7],
-                'score_musical' => $scores[8],
+            // إذا كان الاختبار قبلياً، نقوم بعملية الحفظ المتكاملة
+            $studentData = session('student_registration_data');
+
+            // 1. إنشاء سجل الطالب
+            $studentId = DB::table('students')->insertGetId([
+                'full_name' => $studentData['full_name'],
+                'whatsapp_number' => $studentData['whatsapp_number'],
+                'email' => $studentData['email'],
+                'governorate' => $studentData['governorate'],
+                'gpa' => $studentData['gpa'],
+                'graduation_year' => $studentData['graduation_year'],
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
+
+            // 2. إنشاء سجل النتائج
+            DB::table('test_results')->insert([
+                'student_id' => $studentId,
+                'score_social' => $scores['social'],
+                'score_visual' => $scores['visual'],
+                'score_intrapersonal' => $scores['intrapersonal'],
+                'score_kinesthetic' => $scores['kinesthetic'],
+                'score_logical' => $scores['logical'],
+                'score_naturalist' => $scores['naturalist'],
+                'score_linguistic' => $scores['linguistic'],
+                'score_musical' => $scores['musical'],
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            
+            // 3. مسح البيانات المؤقتة من الجلسة
+            Session::forget('student_registration_data');
+
         } elseif ($testType === 'post') {
-            // هذا هو الاختبار البعدي، نقوم بتحديث السجل الحالي
+            // إذا كان الاختبار بعدياً، نقوم فقط بتحديث السجل الحالي
             DB::table('test_results')->where('student_id', $studentId)->update([
-                'post_score_social' => $scores[1],
-                'post_score_visual' => $scores[2],
-                'post_score_intrapersonal' => $scores[3],
-                'post_score_kinesthetic' => $scores[4],
-                'post_score_logical' => $scores[5],
-                'post_score_naturalist' => $scores[6],
-                'post_score_linguistic' => $scores[7],
-                'post_score_musical' => $scores[8],
+                'post_score_social' => $scores['social'],
+                'post_score_visual' => $scores['visual'],
+                'post_score_intrapersonal' => $scores['intrapersonal'],
+                'post_score_kinesthetic' => $scores['kinesthetic'],
+                'post_score_logical' => $scores['logical'],
+                'post_score_naturalist' => $scores['naturalist'],
+                'post_score_linguistic' => $scores['linguistic'],
+                'post_score_musical' => $scores['musical'],
                 'updated_at' => now(),
             ]);
         }
 
-        // جلب كل البيانات لعرضها في صفحة النتائج
-        return $this->showResults($studentId);
-    }
-
-    /**
-     * عرض صفحة النتائج النهائية
-     */
-    private function showResults($studentId)
-    {
-        $intelligenceTypes = DB::table('intelligence_types')->get()->keyBy('id');
-        $result = DB::table('test_results')->where('student_id', $studentId)->first();
-
-        // تجهيز مصفوفة النتائج القبلية
-        $preScores = [
-            1 => $result->score_social, 2 => $result->score_visual, 3 => $result->score_intrapersonal,
-            4 => $result->score_kinesthetic, 5 => $result->score_logical, 6 => $result->score_naturalist,
-            7 => $result->score_linguistic, 8 => $result->score_musical,
-        ];
-        arsort($preScores);
-
-        // تجهيز مصفوفة النتائج البعدية (إذا كانت موجودة)
-        $postScores = null;
-        if ($result->post_score_social !== null) {
-            $postScores = [
-                1 => $result->post_score_social, 2 => $result->post_score_visual, 3 => $result->post_score_intrapersonal,
-                4 => $result->post_score_kinesthetic, 5 => $result->post_score_logical, 6 => $result->post_score_naturalist,
-                7 => $result->post_score_linguistic, 8 => $result->post_score_musical,
-            ];
-            arsort($postScores);
-        }
-
-        return view('results', [
-            'student' => DB::table('students')->find($studentId),
-            'preScores' => $preScores,
-            'postScores' => $postScores,
-            'intelligenceTypes' => $intelligenceTypes,
-        ]);
+        // في كلتا الحالتين، نوجه الطالب لصفحة النتائج الخاصة به
+        return redirect()->route('results.show', ['student_id' => $studentId]);
     }
 }
-
