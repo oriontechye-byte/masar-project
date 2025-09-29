@@ -43,25 +43,26 @@
             border-bottom: 2px solid #007bff;
             padding-bottom: 10px;
         }
-        .results-section, .comparison-section, .recommendations-section {
+        .results-section, .recommendations-section {
             margin-bottom: 40px;
         }
         .result-list { list-style: none; padding: 0; }
         .result-item {
-            display: flex;
-            align-items: center;
             padding: 15px;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
             border-radius: 8px;
             background-color: #f9f9f9;
             border: 1px solid #e1e1e1;
         }
         .result-item.top-score { background-color: #e9f7ec; border-color: #c3e6cb; }
-        .score-name { font-weight: bold; flex-grow: 1; }
-        .score-value { background-color: #007bff; color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold; }
+        .score-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .score-name { font-weight: bold; }
+        .score-value { background-color: #007bff; color: white; padding: 3px 12px; border-radius: 20px; font-size: 14px; }
         .result-item.top-score .score-value { background-color: #28a745; }
-        .trophy { margin-left: 10px; color: #ffc107; }
-        
+        .progress-bar-container { background-color: #e9ecef; border-radius: 20px; height: 10px; overflow: hidden; }
+        .progress-bar { background-color: #007bff; height: 100%; border-radius: 20px; transition: width 0.5s ease-in-out; }
+        .result-item.top-score .progress-bar { background-color: #28a745; }
+
         .recommendation-card {
             background: #fff;
             border: 1px solid #e1e1e1;
@@ -70,18 +71,14 @@
             margin-bottom: 20px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.05);
         }
+        .recommendation-card h4 {
+            font-size: 20px;
+            color: #0056b3;
+            margin-top: 0;
+        }
         .recommendation-card p { margin-top: 0; color: #555; }
         .recommendation-card .careers { font-weight: bold; color: #333; }
-        
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { padding: 12px 15px; text-align: center; border: 1px solid #ddd; }
-        th { background-color: #f2f2f2; font-weight: bold; color: #333; }
-        .comparison-value { font-size: 1.2em; font-weight: bold; }
-        .increase { color: #28a745; }
-        .decrease { color: #dc3545; }
     </style>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -92,9 +89,29 @@
         </div>
 
         @if ($postScores)
+            {{-- This section will be displayed only after the post-test --}}
+            <div class="results-section">
+                <h3>نتائجك في الاختبار البعدي</h3>
+                <ul class="result-list">
+                    @php $counter = 0; @endphp
+                    @foreach ($postScores as $typeId => $data)
+                        <li class="result-item {{ $counter < 3 ? 'top-score' : '' }}">
+                            <div class="score-header">
+                                <span class="score-name">{{ $intelligenceTypes[$typeId]->name }}</span>
+                                <span class="score-value">{{ round($data['percentage']) }}%</span>
+                            </div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar" style="width: {{ max(0, min(100, (float) ($data['percentage'] ?? 0)) ) }}%;"></div>
+                            </div>
+                        </li>
+                        @php $counter++; @endphp
+                    @endforeach
+                </ul>
+            </div>
+
             <div class="recommendations-section">
                 <h3>التخصصات المقترحة لك</h3>
-                <p>بناءً على نتائجك في الاختبار البعدي، هذه هي أبرز نقاط قوتك والتخصصات التي نوصي بها:</p>
+                <p>بناءً على نتائجك، هذه هي أبرز نقاط قوتك والتخصصات التي نوصي بها:</p>
                 @php $topPostScores = array_slice($postScores, 0, 3, true); @endphp
                 @foreach ($topPostScores as $typeId => $score)
                     <div class="recommendation-card">
@@ -104,57 +121,45 @@
                     </div>
                 @endforeach
             </div>
-
-            <div class="comparison-section">
-                <h3>مقارنة بين نتائجك</h3>
-                <p>هذا الجدول يوضح تطور أعلى 3 ذكاءات لديك بين الاختبار القبلي والبعدي.</p>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>نوع الذكاء</th>
-                            <th>النتيجة القبلية</th>
-                            <th>النتيجة البعدية</th>
-                            <th>التطور</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($postScores as $typeId => $postScore)
-                            @php
-                                $preScore = $preScores[$typeId] ?? 0;
-                                $change = $postScore - $preScore;
-                                $changeClass = $change > 0 ? 'increase' : ($change < 0 ? 'decrease' : '');
-                                $changeSign = $change > 0 ? '+' : '';
-                            @endphp
-                            <tr>
-                                <td><strong>{{ $intelligenceTypes[$typeId]->name }}</strong></td>
-                                <td class="comparison-value">{{ $preScore }}</td>
-                                <td class="comparison-value">{{ $postScore }}</td>
-                                <td class="comparison-value {{ $changeClass }}">{{ $changeSign }}{{ $change }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        
-        @else
+        @elseif (!empty($preScores))
+            {{-- This section will be displayed only after the pre-test --}}
             <div class="results-section">
                 <h3>نتائجك في الاختبار القبلي</h3>
                 <p>هذه هي نقاط قوتك الأولية. استخدم هذه المعلومات للتركيز على تطوير مهاراتك خلال المحاضرة.</p>
                 <ul class="result-list">
-                    @php $isFirst = true; @endphp
-                    @foreach ($preScores as $typeId => $score)
-                        <li class="result-item {{ $isFirst ? 'top-score' : '' }}">
-                            <span class="score-name">
-                                {{ $intelligenceTypes[$typeId]->name }}
-                                @if($isFirst) <span class="trophy">🏆</span> @endif
-                            </span>
-                            <span class="score-value">{{ $score }}</span>
+                    @php $counter = 0; @endphp
+                    @foreach ($preScores as $typeId => $data)
+                        <li class="result-item {{ $counter < 3 ? 'top-score' : '' }}">
+                             <div class="score-header">
+                                <span class="score-name">
+                                    {{ $intelligenceTypes[$typeId]->name }}
+                                    @if($counter < 1) <span class="trophy">🏆</span> @endif
+                                </span>
+                                <span class="score-value">{{ round($data['percentage']) }}%</span>
+                            </div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar" style="width: {{ max(0, min(100, (float) ($data['percentage'] ?? 0)) ) }}%;"></div>
+                            </div>
                         </li>
-                        @php $isFirst = false; @endphp
+                        @php $counter++; @endphp
                     @endforeach
                 </ul>
             </div>
+             <div class="recommendations-section">
+                <h3>أبرز نقاط قوتك الحالية</h3>
+                 @php $topPreScores = array_slice($preScores, 0, 3, true); @endphp
+                @foreach ($topPreScores as $typeId => $score)
+                    <div class="recommendation-card">
+                        <h4>{{ $intelligenceTypes[$typeId]->name }}</h4>
+                        <p>{{ $intelligenceTypes[$typeId]->description }}</p>
+                        <p class="careers">يمكنك التفوق في مجالات مثل: {{ $intelligenceTypes[$typeId]->careers }}</p>
+                    </div>
+                @endforeach
+            </div>
+        @else
+            <p>لم يتم العثور على نتائج لهذا الطالب.</p>
         @endif
     </div>
 </body>
 </html>
+

@@ -26,6 +26,7 @@
         .feature-icon { font-size: 48px; color: #007bff; margin-bottom: 20px; }
         .feature-card h3 { font-size: 22px; margin-bottom: 15px; }
         .footer { background: #343d46; color: #adb5bd; padding: 40px 0; text-align: center; }
+        .alert-message { padding: 15px; background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 5px; margin-bottom: 20px; text-align: center; }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
 </head>
@@ -38,9 +39,20 @@
 
     <header class="hero">
         <div class="container hero-content">
+             @if (session('message'))
+                <div class="alert-message" style="background-color: #fff3cd; color: #856404; border-color: #ffeeba; max-width: 600px; margin: 0 auto 20px auto;">
+                    {{ session('message') }}
+                </div>
+            @endif
+        
             <h1>اكتشف مسارك الأكاديمي والمهني</h1>
             <p>مشروع مسار ليس مجرد اختبار، بل هو رحلة فريدة لقياس تطورك ومساعدتك على فهم قدراتك الحقيقية لاختيار التخصص الأنسب لك.</p>
-            <a href="/register" class="cta-button">ابدأ رحلتك الآن</a>
+
+            @if ($activePhase == 'pre')
+                <a href="{{ route('register') }}" class="cta-button">ابدأ الاختبار القبلي</a>
+            @else
+                <a href="{{ route('post-test') }}" class="cta-button">ابدأ الاختبار البعدي</a>
+            @endif
         </div>
     </header>
 

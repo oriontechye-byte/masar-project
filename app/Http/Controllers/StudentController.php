@@ -9,10 +9,15 @@ use Illuminate\Support\Facades\Redirect;
 class StudentController extends Controller
 {
     /**
-     * عرض صفحة التسجيل.
+     * عرض صفحة التسجيل مع التحقق من المرحلة النشطة.
      */
-    public function showRegistrationForm()
+    public function showRegistrationForm(Request $request)
     {
+        $setting = DB::table('settings')->where('key', 'active_test_phase')->first();
+        if (($setting->value ?? 'pre') !== 'pre') {
+            return redirect('/')->with('error', 'فترة الاختبار القبلي مغلقة حالياً.');
+        }
+
         $governorates = ['أمانة العاصمة', 'عدن', 'عمران', 'أبين', 'الضالع', 'البيضاء', 'الحديدة', 'الجوف', 'المهرة', 'المحويت', 'ذمار', 'حضرموت', 'حجة', 'إب', 'لحج', 'مأرب', 'ريمة', 'صعدة', 'صنعاء', 'شبوة', 'سقطرى', 'تعز'];
         sort($governorates);
         $years = range(date('Y'), date('Y') - 5);
@@ -29,7 +34,7 @@ class StudentController extends Controller
     public function register(Request $request)
     {
         $validatedData = $request->validate([
-            'full_name' => ['required', 'string', 'max:255', 'regex:/^[\p{Arabic}\s]+$/u'], // قاعدة تحقق أبسط
+            'full_name' => ['required', 'string', 'max:255', 'regex:/^[\p{Arabic}\s]+$/u'],
             'whatsapp_number' => 'required|string|unique:students,whatsapp_number|regex:/^[7][01378]\d{7}$/',
             'email' => 'nullable|email|max:255',
             'governorate' => 'required|string|max:255',
@@ -41,20 +46,25 @@ class StudentController extends Controller
             'whatsapp_number.regex' => 'يجب إدخال رقم هاتف يمني صحيح مكون من 9 أرقام (مثال: 771234567).',
         ]);
 
-        // تخزين البيانات المؤقت في الجلسة
         session(['student_registration_data' => $validatedData]);
-
-        // توجيه الطالب إلى صفحة الاختبار القبلي
         return Redirect::to('/test?test_type=pre');
     }
-    
-    // --- بقية الدوال تبقى كما هي ---
 
-    public function showPostTestLookupForm()
+    /**
+     * عرض صفحة البحث عن الاختبار البعدي مع التحقق من المرحلة النشطة.
+     */
+    public function showPostTestLookupForm(Request $request)
     {
+        $setting = DB::table('settings')->where('key', 'active_test_phase')->first();
+        if (($setting->value ?? 'pre') !== 'post') {
+            return redirect('/')->with('error', 'فترة الاختبار البعدي مغلقة حالياً.');
+        }
         return view('post_test_lookup');
     }
 
+    /**
+     * معالجة البحث عن الطالب لبدء الاختبار البعدي.
+     */
     public function handlePostTestLookup(Request $request)
     {
         $request->validate([
@@ -70,37 +80,55 @@ class StudentController extends Controller
             return Redirect::to('/test?student_id=' . $student->id . '&test_type=post');
         }
 
-        return back()->withErrors([
-            'whatsapp_number' => 'لم يتم العثور على طالب بهذا الرقم.',
-        ]);
+        return back()->withErrors(['whatsapp_number' => 'لم يتم العثور على طالب بهذا الرقم.']);
     }
 
+    /**
+     * عرض صفحة النتائج النهائية للطالب (الكود المصحح).
+     */
     public function showStudentResults($student_id)
     {
         $student = DB::table('students')->find($student_id);
         if (!$student) { abort(404, 'الطالب غير موجود'); }
+
         $result = DB::table('test_results')->where('student_id', $student_id)->first();
         $intelligenceTypes = DB::table('intelligence_types')->get()->keyBy('id');
+        
+        if (!$result) { abort(404, 'النتيجة غير موجودة'); }
+
+        // Mapping from intelligence type ID to its corresponding column name suffix.
+        $scoreMap = [
+            1 => 'social', 2 => 'visual', 3 => 'intrapersonal', 4 => 'kinesthetic',
+            5 => 'logical', 6 => 'naturalist', 7 => 'linguistic', 8 => 'musical'
+        ];
+
         $preScores = [];
-        $postScores = null;
-        if ($result) {
-            foreach ($intelligenceTypes as $id => $type) {
-                $score_key = 'score_' . \Illuminate\Support\Str::of($type->name)->snake()->explode('_')->last();
-                $preScores[$id] = $result->{$score_key} ?? 0;
-            }
-            arsort($preScores);
+        $postScores = [];
+        $hasPostTest = false;
+
+        foreach ($scoreMap as $id => $nameSuffix) {
+            $preColumn = 'score_' . $nameSuffix;
+            $postColumn = 'post_score_' . $nameSuffix;
             
-            $post_score_key_check = 'post_score_social';
-            if (isset($result->{$post_score_key_check})) {
-                $postScores = [];
-                foreach ($intelligenceTypes as $id => $type) {
-                     $post_score_key = 'post_score_' . \Illuminate\Support\Str::of($type->name)->snake()->explode('_')->last();
-                     $postScores[$id] = $result->{$post_score_key} ?? 0;
-                }
-                arsort($postScores);
+            // Populate pre-test scores
+            $preScores[$id] = $result->{$preColumn} ?? 0;
+            
+            // Check for and populate post-test scores
+            if (isset($result->{$postColumn}) && $result->{$postColumn} !== null) {
+                $postScores[$id] = $result->{$postColumn};
+                $hasPostTest = true;
             }
         }
-        return view('results', compact('student', 'preScores', 'postScores', 'intelligenceTypes'));
+
+        // Sort scores arrays in descending order
+        arsort($preScores);
+        if ($hasPostTest) {
+            arsort($postScores);
+        } else {
+            $postScores = null; // Ensure postScores is null if no post-test was taken
+        }
+
+        return view('results', compact('student', 'preScores', 'postScores', 'intelligenceTypes', 'hasPostTest'));
     }
 }
 

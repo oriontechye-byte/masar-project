@@ -18,7 +18,7 @@ class TestController extends Controller
             return redirect('/register')->withErrors(['msg' => 'الرجاء إكمال بيانات التسجيل أولاً.']);
         }
         
-        $questions = DB::table('questions')->inRandomOrder()->get(); // جلب الأسئلة بترتيب عشوائي
+        $questions = DB::table('questions')->inRandomOrder()->get();
         return view('test', ['questions' => $questions]);
     }
 
@@ -38,39 +38,33 @@ class TestController extends Controller
             $studentData = session('student_registration_data');
         }
 
-        // --- **بداية التعديل والإصلاح** ---
+        // --- منطقة الكود المصححة ---
 
-        // جلب جميع الأسئلة مع أنواع الذكاء المرتبطة بها
         $questions = DB::table('questions')->get()->keyBy('id');
         
-        // تهيئة مصفوفة الدرجات بأسماء واضحة وقيمة ابتدائية صفر
         $scores = [
             'social' => 0, 'visual' => 0, 'intrapersonal' => 0, 'kinesthetic' => 0,
             'logical' => 0, 'naturalist' => 0, 'linguistic' => 0, 'musical' => 0
         ];
 
-        // مصفوفة لربط ID نوع الذكاء باسمه
         $typeMap = [
             1 => 'social', 2 => 'visual', 3 => 'intrapersonal', 4 => 'kinesthetic',
             5 => 'logical', 6 => 'naturalist', 7 => 'linguistic', 8 => 'musical'
         ];
 
-        // التأكد من وجود إجابات قبل البدء بالحساب
         if ($answers) {
             foreach ($answers as $questionId => $value) {
-                // التأكد من أن السؤال موجود وأن الإجابة قيمة رقمية
                 if (isset($questions[$questionId]) && is_numeric($value)) {
                     $question = $questions[$questionId];
-                    $typeName = $typeMap[$question->intelligence_type_id];
-                    
-                    // جمع قيمة الإجابة على الدرجة الحالية لنوع الذكاء
-                    $scores[$typeName] += (int)$value;
+                    if (isset($typeMap[$question->intelligence_type_id])) {
+                        $typeName = $typeMap[$question->intelligence_type_id];
+                        $scores[$typeName] += (int)$value;
+                    }
                 }
             }
         }
         
-        // --- **نهاية التعديل والإصلاح** ---
-
+        // --- نهاية منطقة الكود المصححة ---
 
         if ($testType === 'pre') {
             $studentId = DB::table('students')->insertGetId([

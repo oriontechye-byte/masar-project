@@ -18,16 +18,19 @@ class DatabaseSeeder extends Seeder
         $this->call([
             IntelligenceTypeSeeder::class,
             QuestionSeeder::class,
+            // SettingsSeeder::class, // تم الحذف لأنه غير موجود
         ]);
 
         // Then, create the Admin User
-        DB::table('users')->insert([
-            'name' => 'Admin',
-            'email' => 'admin@masar.com',
-            'password' => Hash::make('password'),
-            'role' => 'admin',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        DB::table('users')->updateOrInsert(
+            ['email' => 'admin@admin.com'],
+            [
+                'name' => 'Admin',
+                'password' => Hash::make('password'),
+                'role' => 'admin',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
     }
 }

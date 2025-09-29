@@ -5,11 +5,12 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class LoginController extends Controller
 {
     /**
-     * عرض صفحة تسجيل دخول المسؤول.
+     * Show the admin login form.
      */
     public function showLoginForm()
     {
@@ -17,7 +18,7 @@ class LoginController extends Controller
     }
 
     /**
-     * معالجة طلب تسجيل الدخول.
+     * Handle the login request.
      */
     public function login(Request $request)
     {
@@ -26,25 +27,31 @@ class LoginController extends Controller
             'password' => 'required',
         ]);
 
+        // Attempt to authenticate the user
         if (Auth::attempt($credentials)) {
-            if (Auth::user()->role !== 'admin') {
-                Auth::logout();
-                return back()->withErrors([
-                    'email' => 'هذه الصفحة مخصصة للمسؤولين فقط.',
-                ]);
+            $user = Auth::user();
+
+            // **Crucial Check**: Ensure the user has the 'admin' role
+            if ($user->role === 'admin') {
+                $request->session()->regenerate();
+                return redirect()->intended('/admin/dashboard');
             }
 
-            $request->session()->regenerate();
-            return redirect()->intended('/admin/dashboard');
+            // If the user is not an admin, log them out immediately
+            Auth::logout();
+            return back()->withErrors([
+                'email' => 'هذه الصفحة مخصصة للمسؤولين فقط.',
+            ]);
         }
 
+        // If authentication fails
         return back()->withErrors([
             'email' => 'البيانات المدخلة غير صحيحة.',
         ]);
     }
 
     /**
-     * تسجيل خروج المستخدم.
+     * Log the user out.
      */
     public function logout(Request $request)
     {
