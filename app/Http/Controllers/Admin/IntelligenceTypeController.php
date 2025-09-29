@@ -3,36 +3,32 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\IntelligenceType; // Using the IntelligenceType Model
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class IntelligenceTypeController extends Controller
 {
     /**
-     * عرض قائمة بكل أنواع الذكاء.
+     * Display a listing of all intelligence types.
      */
     public function index()
     {
-        $types = DB::table('intelligence_types')->orderBy('id')->get();
+        $types = IntelligenceType::orderBy('id')->get();
         return view('admin.intelligence_types.index', compact('types'));
     }
 
     /**
-     * عرض فورم تعديل نوع ذكاء معين.
+     * Show the form for editing a specific intelligence type.
      */
-    public function edit($id)
+    public function edit(IntelligenceType $type)
     {
-        $type = DB::table('intelligence_types')->find($id);
-        if (!$type) {
-            return redirect()->route('admin.types.index')->with('error', 'هذا النوع غير موجود.');
-        }
         return view('admin.intelligence_types.edit', compact('type'));
     }
 
     /**
-     * تحديث بيانات نوع الذكاء في قاعدة البيانات.
+     * Update the specified intelligence type in storage.
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, IntelligenceType $type)
     {
         $request->validate([
             'description' => 'required|string|max:1000',
@@ -42,13 +38,11 @@ class IntelligenceTypeController extends Controller
             'careers.required' => 'حقل التخصصات المقترحة مطلوب.',
         ]);
 
-        DB::table('intelligence_types')->where('id', $id)->update([
+        $type->update([
             'description' => $request->description,
             'careers' => $request->careers,
-            'updated_at' => now(),
         ]);
 
         return redirect()->route('admin.types.index')->with('success', 'تم تحديث البيانات بنجاح.');
     }
 }
-

@@ -7,18 +7,24 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
-use App\Models\User; // تأكد من وجود هذا السطر
+use App\Models\User;
 
 class ProfileController extends Controller
 {
+    /**
+     * Show the form for editing the user's profile.
+     */
     public function edit()
     {
         return view('admin.profile.edit')->with('user', Auth::user());
     }
 
+    /**
+     * Update the user's profile information.
+     */
     public function update(Request $request)
     {
-        $user = User::find(Auth::id());
+        $user = Auth::user();
 
         $request->validate([
             'name' => ['required', 'string', 'max:255'],

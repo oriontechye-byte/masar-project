@@ -3,22 +3,20 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use App\Models\Student; // Using the Student Model
 
 class DashboardController extends Controller
 {
     /**
-     * عرض لوحة التحكم الرئيسية مع الإحصائيات.
+     * Display the admin dashboard with statistics.
      */
     public function index()
     {
         $stats = [
-            'students_count' => DB::table('students')->count(),
-            // يمكن إضافة إحصائيات أخرى هنا مستقبلاً
+            'students_count' => Student::count(),
+            // More stats can be added here in the future
         ];
 
         return view('admin.dashboard', compact('stats'));
     }
 }
-
