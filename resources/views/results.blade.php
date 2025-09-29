@@ -91,7 +91,6 @@
             <h2>مرحباً بك، {{ $student->full_name ?? 'طالبنا العزيز' }}</h2>
         </div>
 
-        {{-- This section will be displayed only after the post-test --}}
         @if ($postScores)
             <div class="recommendations-section">
                 <h3>التخصصات المقترحة لك</h3>
@@ -109,7 +108,6 @@
             <div class="comparison-section">
                 <h3>مقارنة بين نتائجك</h3>
                 <p>هذا الجدول يوضح تطور أعلى 3 ذكاءات لديك بين الاختبار القبلي والبعدي.</p>
-                @php $topPreScores = array_slice($preScores, 0, 3, true); @endphp
                 <table>
                     <thead>
                         <tr>
@@ -120,7 +118,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach ($topPostScores as $typeId => $postScore)
+                        @foreach ($postScores as $typeId => $postScore)
                             @php
                                 $preScore = $preScores[$typeId] ?? 0;
                                 $change = $postScore - $preScore;
@@ -138,7 +136,6 @@
                 </table>
             </div>
         
-        {{-- This section will be displayed only after the pre-test --}}
         @else
             <div class="results-section">
                 <h3>نتائجك في الاختبار القبلي</h3>
@@ -161,4 +158,3 @@
     </div>
 </body>
 </html>
-

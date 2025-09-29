@@ -2,99 +2,79 @@
 
 namespace App\Exports;
 
-use App\Models\Student;
-use App\Models\Question;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 
-class StudentsExport implements FromQuery, WithHeadings, WithMapping
+class StudentsExport implements FromQuery, WithHeadings, ShouldAutoSize
 {
     protected $filters;
     protected $testType;
-    protected $questions;
 
     public function __construct(array $filters, string $testType = 'pre')
     {
         $this->filters = $filters;
         $this->testType = $testType;
-        $this->questions = Question::orderBy('id')->get();
     }
 
     public function query()
     {
-        $query = Student::with(['testResult', 'testResult.highestPostLectureIntelligenceType'])
-                        ->whereHas('testResult');
+        $query = DB::table('students')
+            ->leftJoin('test_results', 'students.id', '=', 'test_results.student_id');
 
+        // Apply filters
         if (!empty($this->filters['governorate'])) {
             $query->where('governorate', $this->filters['governorate']);
         }
         if (!empty($this->filters['start_date'])) {
-            $query->whereDate('created_at', '>=', $this->filters['start_date']);
+            $query->whereDate('students.created_at', '>=', $this->filters['start_date']);
         }
         if (!empty($this->filters['end_date'])) {
-            $query->whereDate('created_at', '<=', $this->filters['end_date']);
+            $query->whereDate('students.created_at', '<=', $this->filters['end_date']);
         }
 
-        return $query->orderBy('created_at', 'desc');
+        // Select columns based on test type
+        if ($this->testType === 'post') {
+            $query->select(
+                'students.full_name', 'students.whatsapp_number', 'students.governorate',
+                'students.gpa', 'students.graduation_year', 'students.created_at',
+                'test_results.post_score_social', 'test_results.post_score_visual', 'test_results.post_score_intrapersonal',
+                'test_results.post_score_kinesthetic', 'test_results.post_score_logical', 'test_results.post_score_naturalist',
+                'test_results.post_score_linguistic', 'test_results.post_score_musical'
+            )->whereNotNull('test_results.post_score_social'); // Only students who took the post-test
+        } else {
+            $query->select(
+                'students.full_name', 'students.whatsapp_number', 'students.governorate',
+                'students.gpa', 'students.graduation_year', 'students.created_at',
+                'test_results.score_social', 'test_results.score_visual', 'test_results.score_intrapersonal',
+                'test_results.score_kinesthetic', 'test_results.score_logical', 'test_results.score_naturalist',
+                'test_results.score_linguistic', 'test_results.score_musical'
+            );
+        }
+
+        return $query->orderBy('students.created_at', 'desc');
     }
 
     public function headings(): array
     {
-        $headings = [
-            'ID', 'الاسم', 'رقم الواتساب', 'المحافظة', 'المعدل', 'تاريخ التسجيل',
+        $baseHeadings = [
+            'الاسم الكامل', 'رقم الواتساب', 'المحافظة', 'المعدل', 'سنة التخرج', 'تاريخ التسجيل'
         ];
 
-        foreach ($this->questions as $question) {
-            $headings[] = 'س' . $question->id;
-        }
+        $scoreType = ($this->testType === 'post') ? '(بعدي)' : '(قبلي)';
 
-        if ($this->testType === 'post') {
-            $headings[] = 'أعلى ذكاء بعد المحاضرة';
-            $headings[] = 'التخصصات المقترحة';
-            $headings[] = 'المهن المقترحة';
-        }
-
-        return $headings;
-    }
-
-    public function map($student): array
-    {
-        $row = [
-            $student->id, $student->name, $student->whatsapp_number, $student->governorate,
-            $student->gpa, $student->created_at->format('Y-m-d'),
+        $scoreHeadings = [
+            'الذكاء الاجتماعي ' . $scoreType,
+            'الذكاء البصري ' . $scoreType,
+            'الذكاء الذاتي ' . $scoreType,
+            'الذكاء الحركي ' . $scoreType,
+            'الذكاء المنطقي ' . $scoreType,
+            'الذكاء الطبيعي ' . $scoreType,
+            'الذكاء اللغوي ' . $scoreType,
+            'الذكاء الموسيقي ' . $scoreType,
         ];
 
-        // --- **هذا هو التعديل الرئيسي** ---
-        // نتأكد أولاً من وجود نتيجة اختبار للطالب قبل المتابعة
-        $scores = [];
-        if ($student->testResult) {
-            $scores_json = ($this->testType === 'post')
-                ? $student->testResult->post_lecture_scores
-                : $student->testResult->pre_lecture_scores;
-
-            $scores = json_decode($scores_json, true) ?? [];
-        }
-        // --- نهاية التعديل ---
-
-        foreach ($this->questions as $question) {
-            // إذا لم نجد إجابة للسؤال (بسبب عدم وجود نتيجة مثلاً)، سنضع 0
-            $row[] = $scores[$question->id] ?? 0;
-        }
-
-        if ($this->testType === 'post' && $student->testResult) {
-            $highestIntelligence = $student->testResult->highestPostLectureIntelligenceType;
-            if ($highestIntelligence) {
-                $row[] = $highestIntelligence->name;
-                $row[] = $highestIntelligence->careers;
-                $row[] = $highestIntelligence->description;
-            } else {
-                $row[] = 'N/A';
-                $row[] = 'N/A';
-                $row[] = 'N/A';
-            }
-        }
-
-        return $row;
+        return array_merge($baseHeadings, $scoreHeadings);
     }
 }

@@ -14,13 +14,11 @@ class TestController extends Controller
      */
     public function showTest()
     {
-        // نتأكد من وجود بيانات الطالب في الجلسة إذا كان الاختبار قبلياً
         if (request('test_type') == 'pre' && !Session::has('student_registration_data')) {
-            // إذا لم تكن هناك بيانات، نعيده لصفحة التسجيل
             return redirect('/register')->withErrors(['msg' => 'الرجاء إكمال بيانات التسجيل أولاً.']);
         }
         
-        $questions = DB::table('questions')->get();
+        $questions = DB::table('questions')->inRandomOrder()->get(); // جلب الأسئلة بترتيب عشوائي
         return view('test', ['questions' => $questions]);
     }
 
@@ -33,41 +31,48 @@ class TestController extends Controller
         $answers = $request->input('answers');
         $studentId = $request->input('student_id');
 
-        // -- تعديل مهم: التحقق من وجود بيانات الجلسة للاختبار القبلي --
         if ($testType === 'pre') {
             if (!session()->has('student_registration_data')) {
-                // إذا كانت البيانات غير موجودة، نعيد الطالب لصفحة التسجيل مع رسالة واضحة
                 return redirect('/register')->withErrors(['msg' => 'انتهت صلاحية الجلسة، الرجاء تسجيل بياناتك مرة أخرى.']);
             }
             $studentData = session('student_registration_data');
         }
-        // -- نهاية التعديل --
 
-        // حساب الدرجات
+        // --- **بداية التعديل والإصلاح** ---
+
+        // جلب جميع الأسئلة مع أنواع الذكاء المرتبطة بها
         $questions = DB::table('questions')->get()->keyBy('id');
-        $scores = [];
+        
+        // تهيئة مصفوفة الدرجات بأسماء واضحة وقيمة ابتدائية صفر
+        $scores = [
+            'social' => 0, 'visual' => 0, 'intrapersonal' => 0, 'kinesthetic' => 0,
+            'logical' => 0, 'naturalist' => 0, 'linguistic' => 0, 'musical' => 0
+        ];
+
+        // مصفوفة لربط ID نوع الذكاء باسمه
         $typeMap = [
             1 => 'social', 2 => 'visual', 3 => 'intrapersonal', 4 => 'kinesthetic',
             5 => 'logical', 6 => 'naturalist', 7 => 'linguistic', 8 => 'musical'
         ];
-        
-        // تهيئة مصفوفة الدرجات
-        foreach ($typeMap as $name) {
-            $scores[$name] = 0;
-        }
 
+        // التأكد من وجود إجابات قبل البدء بالحساب
         if ($answers) {
-            foreach ($answers as $question_id => $value) {
-                if (isset($questions[$question_id])) {
-                    $question = $questions[$question_id];
+            foreach ($answers as $questionId => $value) {
+                // التأكد من أن السؤال موجود وأن الإجابة قيمة رقمية
+                if (isset($questions[$questionId]) && is_numeric($value)) {
+                    $question = $questions[$questionId];
                     $typeName = $typeMap[$question->intelligence_type_id];
+                    
+                    // جمع قيمة الإجابة على الدرجة الحالية لنوع الذكاء
                     $scores[$typeName] += (int)$value;
                 }
             }
         }
+        
+        // --- **نهاية التعديل والإصلاح** ---
+
 
         if ($testType === 'pre') {
-            // 1. إنشاء سجل الطالب
             $studentId = DB::table('students')->insertGetId([
                 'full_name' => $studentData['full_name'],
                 'whatsapp_number' => $studentData['whatsapp_number'],
@@ -79,7 +84,6 @@ class TestController extends Controller
                 'updated_at' => now(),
             ]);
 
-            // 2. إنشاء سجل النتائج
             DB::table('test_results')->insert([
                 'student_id' => $studentId,
                 'score_social' => $scores['social'],
@@ -96,8 +100,7 @@ class TestController extends Controller
             
             Session::forget('student_registration_data');
 
-        } elseif ($testType === 'post') {
-            // إذا كان الاختبار بعدياً، نقوم فقط بتحديث السجل الحالي
+        } elseif ($testType === 'post' && $studentId) {
             DB::table('test_results')->where('student_id', $studentId)->update([
                 'post_score_social' => $scores['social'],
                 'post_score_visual' => $scores['visual'],
@@ -111,7 +114,6 @@ class TestController extends Controller
             ]);
         }
 
-        // في كلتا الحالتين، نوجه الطالب لصفحة النتائج الخاصة به
         return redirect()->route('results.show', ['student_id' => $studentId]);
     }
 }

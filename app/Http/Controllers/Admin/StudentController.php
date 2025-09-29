@@ -2,78 +2,72 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Controllers\Controller;
-use App\Models\Student; // <-- تأكد من استخدام المودل
-use App\Models\IntelligenceType; // <-- نحتاجه في دالة show
-use Illuminate\Http\Request;
 use App\Exports\StudentsExport;
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 
 class StudentController extends Controller
 {
     /**
-     * عرض صفحة الطلاب مع إمكانية الفلترة
+     * عرض قائمة بكل الطلاب مع الفلاتر
      */
     public function index(Request $request)
     {
-        // استخدام المودل لبناء الاستعلام
-        $query = Student::query();
-
-        // تطبيق الفلاتر
-        if ($request->filled('governorate')) {
-            $query->where('governorate', $request->governorate);
-        }
-        if ($request->filled('start_date')) {
-            $query->whereDate('created_at', '>=', $request->start_date);
-        }
-        if ($request->filled('end_date')) {
-            $query->whereDate('created_at', '<=', $request->end_date);
-        }
-
-        $students = $query->latest()->paginate(20);
+        $filters = $request->only(['governorate', 'start_date', 'end_date']);
         
-        $governorates = Student::select('governorate')->distinct()->pluck('governorate');
+        $query = DB::table('students');
 
-        return view('admin.students.index', compact('students', 'governorates'));
+        if (!empty($filters['governorate'])) {
+            $query->where('governorate', $filters['governorate']);
+        }
+        if (!empty($filters['start_date'])) {
+            $query->whereDate('created_at', '>=', $filters['start_date']);
+        }
+        if (!empty($filters['end_date'])) {
+            $query->whereDate('created_at', '<=', $filters['end_date']);
+        }
+
+        $students = $query->orderBy('created_at', 'desc')->paginate(15)->withQueryString();
+        
+        $governorates = DB::table('students')->distinct()->pluck('governorate')->sort();
+
+        return view('admin.students.index', [
+            'students' => $students,
+            'governorates' => $governorates,
+            'filters' => $filters,
+        ]);
     }
 
     /**
-     * ----- ***** هذه هي الدالة المعدلة التي تحل المشكلة ***** -----
-     * عرض تفاصيل طالب واحد
+     * عرض صفحة التفاصيل لطالب معين
      */
-    public function show(Student $student)
+    public function show($id)
     {
-        // نقوم بتحميل بيانات الطالب ونتائجه المرتبطة به
-        $student->load('testResult');
+        $student = DB::table('students')->find($id);
+        $result = DB::table('test_results')->where('student_id', $id)->first();
+        $intelligenceTypes = DB::table('intelligence_types')->get()->keyBy('id');
 
-        // نحضر قائمة بأنواع الذكاء لنستخدمها في عرض النتائج
-        $intelligenceTypes = IntelligenceType::all()->keyBy('id');
+        if (!$student) {
+            return redirect()->route('admin.students.index')->with('error', 'الطالب غير موجود.');
+        }
 
-        // نرسل كل البيانات المطلوبة إلى صفحة العرض
         return view('admin.students.show', [
             'student' => $student,
-            'result' => $student->testResult, // <-- هذا هو السطر الذي يحل المشكلة
+            'result' => $result,
             'intelligenceTypes' => $intelligenceTypes,
         ]);
     }
 
     /**
-     * حذف طالب
+     * تصدير بيانات الطلاب ونتائجهم إلى ملف إكسل
      */
-    public function destroy(Student $student)
-    {
-        $student->delete();
-        return redirect()->route('admin.students.index')->with('success', 'تم حذف الطالب بنجاح.');
-    }
-
-    /**
-     * دالة التصدير إلى إكسل
-     */
-    public function export(Request $request)
+    public function export(Request $request) 
     {
         $filters = $request->only(['governorate', 'start_date', 'end_date']);
-        $testType = $request->input('test_type', 'pre');
-        $fileName = ($testType === 'post') ? 'نتائج_الطلاب_البعدي.xlsx' : 'نتائج_الطلاب_القبلي.xlsx';
+        $testType = $request->input('test_type', 'pre'); // Default to 'pre'
+        $fileName = $testType === 'post' ? 'students_post_test_results.xlsx' : 'students_pre_test_results.xlsx';
 
         return Excel::download(new StudentsExport($filters, $testType), $fileName);
     }
