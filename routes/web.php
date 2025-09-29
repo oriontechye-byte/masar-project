@@ -9,7 +9,6 @@ use App\Http\Controllers\Admin\StudentController as AdminStudentController;
 use App\Http\Controllers\Admin\QuestionController;
 use App\Http\Controllers\Admin\IntelligenceTypeController;
 use App\Http\Controllers\Admin\SettingsController;
-use App\Http\Controllers\PageController;
 
 /*
 |--------------------------------------------------------------------------
@@ -18,7 +17,6 @@ use App\Http\Controllers\PageController;
 */
 
 // --- ** هذا هو السطر الذي تم إصلاحه ** ---
-Route::get('/', [PageController::class, 'showLandingPage'])->name('landing');
 // --- ** نهاية الإصلاح ** ---
 
 // Student & Test routes
